@@ -11,20 +11,17 @@ use std::{
     process::{Command as SysCommand, Stdio},
 };
 
-macro_rules! fzf {
-    ($vector:expr, $field: ident) => {{
-        let choice = fzf_select(
-            &$vector
-                .iter()
-                .map(|a| a.$field.to_owned())
-                .collect::<Vec<_>>(),
-        );
-        $vector
-            .into_iter()
-            .filter(|a| a.$field == choice)
-            .next()
-            .unwrap()
-    }};
+fn fzf<A>(vector: Vec<A>, field_getter: fn(&A) -> &str) -> A {
+    let choice = fzf_select(
+        &vector
+            .iter()
+            .map(|a| field_getter(a).to_owned())
+            .collect::<Vec<_>>(),
+    );
+    vector
+        .into_iter()
+        .find(|a| field_getter(a) == choice)
+        .unwrap()
 }
 
 #[derive(Parser)]
@@ -57,8 +54,8 @@ fn main() {
 
 fn install(args: &InstallArgs) {
     let releases: Releases = gh_api(vec![format!("repos/{}/releases", args.repo)]);
-    let release = fzf!(releases, tag_name);
-    let asset = fzf!(release.assets, name);
+    let release = fzf(releases, |a| &a.tag_name);
+    let asset = fzf(release.assets, |a| &a.name);
     SysCommand::new("gh")
         .args([
             "release",
